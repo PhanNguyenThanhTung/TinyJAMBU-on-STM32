@@ -26,3 +26,4 @@ cmake_install.cmake
 .DS_Store
 Thumbs.db
 ke_hoach.txt
+stm32_sender/makefile_guide.txt
