@@ -1,0 +1,200 @@
+===============================================================================
+               HƯỚNG DẪN VIẾT MAKEFILE CHO DỰ ÁN BARE-METAL STM32
+===============================================================================
+
+Tệp tài liệu này hướng dẫn chi tiết cách viết một Makefile hoàn chỉnh cho ứng dụng
+bare-metal STM32 trong thư mục stm32_sender. Tài liệu giải thích chi tiết ý nghĩa
+của từng cờ biên dịch (compiler flags), cờ liên kết (linker flags), cách tạo thư mục
+build đầu ra một cách tự động, và cung cấp một Makefile mẫu.
+
+-------------------------------------------------------------------------------
+1. CẤU TRÚC VÀ CÁC THÀNH PHẦN CHÍNH CỦA MAKEFILE
+-------------------------------------------------------------------------------
+
+Một Makefile dành cho hệ thống nhúng bare-metal thường gồm 5 phần chính:
+  A. Khai báo Toolchain (Bộ công cụ biên dịch chéo ARM)
+  B. Khai báo các đường dẫn và danh sách file nguồn (Source files & Includes)
+  C. Khai báo cờ biên dịch (CFLAGS) và cờ liên kết (LDFLAGS)
+  D. Quy tắc tạo thư mục build đầu ra
+  E. Các luật biên dịch (Rules/Targets) để tạo ra sản phẩm ELF, BIN, HEX
+
+-------------------------------------------------------------------------------
+2. GIẢI THÍCH CHI TIẾT CÁC LỆNH VÀ CỜ BIÊN DỊCH (FLAGS)
+-------------------------------------------------------------------------------
+
+A. Cờ kiến trúc vi điều khiển (MCU Flags):
+  - -mcpu=cortex-m3: Chỉ định nhân vi xử lý của vi điều khiển là ARM Cortex-M3 (phù hợp với STM32F103C8T6).
+    Trình biên dịch sẽ sinh ra mã tối ưu hóa riêng cho tập lệnh của nhân này.
+  - -mthumb: Bắt buộc vi xử lý chạy ở chế độ Thumb (hoặc Thumb-2). Các dòng 
+    Cortex-M chỉ hỗ trợ tập lệnh Thumb/Thumb-2 rút gọn và tối ưu năng lượng/kích thước.
+  * Lưu ý: Chip STM32F103C8T6 (nhân Cortex-M3) không tích hợp sẵn bộ xử lý số thực phần cứng (FPU). 
+    Do đó, chúng ta KHÔNG sử dụng các cờ như `-mfloat-abi=hard` hay `-mfpu=...`. Trình biên dịch sẽ 
+    tự động sử dụng thư viện giả lập số thực phần mềm (software floating-point) khi cần.
+
+B. Cờ biên dịch C (CFLAGS):
+  - -O2: Tối ưu hóa hiệu năng cấp độ 2 (phù hợp với tốc độ chạy của chip).
+    Bạn cũng có thể chọn -Os để tối ưu tối đa về dung lượng bộ nhớ Flash.
+  - -g: Sinh ký hiệu debug (debug symbols) giúp bạn có thể nạp và debug từng dòng
+    code bằng ST-Link, J-Link qua OpenOCD hoặc GDB.
+  - -Wall: Bật tất cả các cảnh báo (warnings) quan trọng để phát hiện sớm các lỗi logic.
+  - -ffunction-sections & -fdata-sections: Đặt từng hàm và biến toàn cục vào các
+    phần vùng (section) độc lập của riêng chúng trong file object trung gian (.o),
+    thay vì gộp chung vào vùng .text hay .data lớn. Điều này giúp loại bỏ code thừa
+    khi link.
+
+C. Cờ liên kết (LDFLAGS):
+  - -T startup/linker.ld: Chỉ định đường dẫn tới file Linker Script (.ld). File này
+    định nghĩa cấu trúc phân bổ bộ nhớ RAM/Flash vật lý trên chip STM32 của bạn.
+    * Lưu ý đối với STM32F103C8T6: Bạn cần cấu hình kích thước RAM/Flash trong file `linker.ld` là:
+      - FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 64K
+      - RAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 20K
+  - -nostartfiles: Không sử dụng các file khởi động mặc định của HĐH (vì đây là dự
+    án bare-metal không chạy hệ điều hành).
+  - --specs=nano.specs: Sử dụng thư viện C tiêu chuẩn siêu nhỏ (Newlib Nano) thay
+    vì thư viện C lớn chuẩn của PC để dung lượng Flash không bị quá tải.
+  - -Wl,--gc-sections: Chỉ thị cho Linker thực hiện "Garbage Collection" loại bỏ
+    tất cả các phân vùng section (hàm, biến) không được gọi tới trong chương trình
+    (phải đi kèm với cờ -ffunction-sections ở phần biên dịch).
+
+-------------------------------------------------------------------------------
+3. CÁCH TẠO THƯ MỤC BUILD ĐẦU RA TỰ ĐỘNG
+-------------------------------------------------------------------------------
+
+Để tránh làm lộn xộn các thư mục chứa mã nguồn với hàng tá tệp tin biên dịch trung
+gian (.o, .d), chúng ta nên đưa chúng vào một thư mục tạm thời (thường là `build/`).
+
+Có hai cách phổ biến để tạo thư mục build tự động trong Makefile:
+
+Cách A: Tạo trực tiếp bằng hàm shell của Make ở đầu tệp:
+  $(shell mkdir -p build)
+  Cách này đảm bảo thư mục `build` luôn được tạo ra ngay khi bạn gọi lệnh `make`.
+
+Cách B: Tạo như một Target phụ thuộc trong luật biên dịch:
+  Đặt một luật tạo thư mục dạng:
+  build:
+      mkdir -p build
+  Và đặt thư mục này làm một điều kiện phụ thuộc (order-only prerequisite)
+  bằng cách dùng dấu gạch đứng | phía sau điều kiện biên dịch thông thường.
+
+-------------------------------------------------------------------------------
+4. MAKEFILE MẪU THAM KHẢO CHO DỰ ÁN
+-------------------------------------------------------------------------------
+
+Dưới đây là một Makefile mẫu hoàn chỉnh phù hợp với cấu trúc dự án của bạn. Bạn
+có thể tham khảo cấu trúc này để tự viết file của riêng mình:
+
+```makefile
+#==============================================================================
+# 1. TOOLCHAIN CONFIGURATION
+#==============================================================================
+PREFIX  = arm-none-eabi-
+CC      = $(PREFIX)gcc
+CP      = $(PREFIX)objcopy
+SZ      = $(PREFIX)size
+
+#==============================================================================
+# 2. TARGET AND BUILD DIRECTORY
+#==============================================================================
+TARGET    = stm32_sender
+BUILD_DIR = build
+
+#==============================================================================
+# 3. SOURCE FILES & INCLUDES
+#==============================================================================
+# Tìm kiếm tất cả các file .c trong dự án của bạn (đã bao gồm cả startup.c)
+C_SOURCES = \
+application/main.c \
+application/app.c \
+application/encryption.c \
+drivers/gpio/gpio.c \
+drivers/rcc/rcc.c \
+drivers/uart/uart.c \
+drivers/systick/systick.c \
+drivers/watchdog/watchdog.c \
+drivers/nvic/nvic.c \
+crypto/tinyjambu.c \
+crypto/tinyjambu_permutation.c \
+protocol/uart_frame.c \
+protocol/crc16.c \
+startup/system_stm32.c \
+startup/vector_table.c \
+startup/startup.c
+
+# Các đường dẫn tìm kiếm file header (.h)
+C_INCLUDES = \
+-Iinclude \
+-Iapplication \
+-Idrivers \
+-Icrypto \
+-Iprotocol \
+-Icmsis/core \
+-Icmsis/device
+
+#==============================================================================
+# 4. COMPILER & LINKER FLAGS
+#==============================================================================
+# Cờ cho chip (MCU) - Cấu hình cho STM32F103C8T6 (Cortex-M3, không có FPU cứng)
+# Thêm định nghĩa -DSTM32F103xB cho thư viện CMSIS (nếu có dùng)
+MCU = -mcpu=cortex-m3 -mthumb
+
+# Cờ biên dịch C
+CFLAGS = $(MCU) $(C_INCLUDES) -DSTM32F103xB -O2 -Wall -fdata-sections -ffunction-sections -g
+
+# Cờ liên kết (Linker Flags)
+LDSCRIPT = startup/linker.ld
+LDFLAGS  = $(MCU) -T$(LDSCRIPT) -nostartfiles --specs=nano.specs -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
+
+#==============================================================================
+# 5. OBJECTS DEFINITION
+#==============================================================================
+# Biến đổi đường dẫn file nguồn thành file .o trong thư mục build
+OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
+vpath %.c $(sort $(dir $(C_SOURCES)))
+
+#==============================================================================
+# 6. BUILD RULES (RULES & TARGETS)
+#==============================================================================
+# Quy tắc mặc định chạy khi gọi 'make'
+all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).hex
+
+# Tạo ra file .o từ file nguồn .c
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+# Liên kết các file .o thành file .elf thực thi chính
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) | $(BUILD_DIR)
+	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	$(SZ) $@
+
+# Trích xuất file .bin từ .elf để nạp Flash trực tiếp
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+	$(CP) -O binary $< $@
+
+# Trích xuất file .hex từ .elf
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+	$(CP) -O ihex $< $@
+
+# Luật tạo thư mục build đầu ra nếu chưa tồn tại
+$(BUILD_DIR):
+	mkdir -p $@
+
+#==============================================================================
+# 7. CLEAN RULE
+#==============================================================================
+# Dọn dẹp toàn bộ file biên dịch trung gian
+clean:
+	rm -fR $(BUILD_DIR)
+
+.PHONY: all clean
+```
+
+-------------------------------------------------------------------------------
+5. CÁCH SỬ DỤNG
+-------------------------------------------------------------------------------
+
+Khi bạn đã tự viết xong Makefile của mình tại thư mục stm32_sender:
+1. Mở terminal tại thư mục `stm32_sender`.
+2. Gõ lệnh `make` để bắt đầu quá trình biên dịch tự động. Thư mục `build` sẽ được
+   tạo ra và chứa các file .o trung gian cùng với file thực thi đích (.elf, .bin, .hex).
+3. Gõ lệnh `make clean` để dọn dẹp các tệp tin tạm thời và thư mục build khi muốn
+   biên dịch lại từ đầu.
