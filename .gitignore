@@ -8,6 +8,7 @@ build/
 stm32_sender/build/
 stm32_sender/tests/
 esp32_client/build/
+esp32_client/sdkconfig
 sdkconfig
 sdkconfig.old
 dependencies.lock
