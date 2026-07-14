@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-
+/* Define status of project*/
 typedef enum {
     STATUS_OK = 0,
     STATUS_ERROR,
