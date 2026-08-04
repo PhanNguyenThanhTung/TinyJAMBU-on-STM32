@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include "memory_map.h"
 
-volatile uint32_t CR;
-
 typedef struct {
     volatile uint32_t CR;
     volatile uint32_t CFGR;

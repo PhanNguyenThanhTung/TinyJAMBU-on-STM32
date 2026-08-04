@@ -2,7 +2,7 @@
 #define PROJECT_CONFIG_H
 /* System clock */
 #define HSE_CLOCK_HZ               8000000UL
-#define SYSTEM_CLOCK_HZ           72000000UL
+#define SYSTEM_CLOCK_HZ            36000000UL
 /* UART */
 #define UART_BAUD_RATE             115200UL
 #define UART_TX_BUFFER_SIZE        256U

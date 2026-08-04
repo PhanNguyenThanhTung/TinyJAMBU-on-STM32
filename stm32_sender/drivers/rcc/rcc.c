@@ -14,7 +14,6 @@ static status_t rcc_switch_system_clock_to_pll(void);
 
 status_t rcc_init() {
     status_t status;
-    rcc_enable_hse();
     status = rcc_enable_hse();
 
     if (status != STATUS_OK) {
@@ -24,14 +23,13 @@ status_t rcc_init() {
     rcc_configure_flash();
     rcc_configure_bus_prescalers();
     rcc_configure_pll();
-    rcc_enable_pll();
+
     status = rcc_enable_pll();
 
     if (status != STATUS_OK) {
         return status;
     }
 
-    rcc_switch_system_clock_to_pll();
     status = rcc_switch_system_clock_to_pll();
 
     if (status != STATUS_OK) {
@@ -45,5 +43,14 @@ status_t rcc_init() {
 static status_t rcc_enable_hse(void) {
     uint32_t timeout = 5000UL;
 
-    while(!(RCC->CR & ())
+    RCC->CR != (1 << 16);
+
+    while(!(RCC->CR & (1 << 17))) {
+        if(timeout <= 0) {
+            return STATUS_TIMEOUT;
+        }
+        timeout--;
+    }
+    return STATUS_OK;
 }
+
