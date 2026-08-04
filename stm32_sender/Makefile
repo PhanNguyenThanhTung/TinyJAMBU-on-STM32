@@ -47,7 +47,8 @@ C_INCLUDES = \
 -Iprotocol \
 -Icmsis/core \
 -Icmsis/device \
--Istartup
+-Istartup \
+-Iregister
 
 MCU = -mcpu=cortex-m3 -mthumb
 CFLAGS = $(MCU) $(C_INCLUDES) -DSTM32F103xB -O2 -Wall -fdata-sections -ffunction-sections -g
