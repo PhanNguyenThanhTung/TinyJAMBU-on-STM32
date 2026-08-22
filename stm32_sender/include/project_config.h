@@ -9,7 +9,7 @@
 #define UART_RX_BUFFER_SIZE        256U
 /* UART tranfer config */
 #define FRAME_START_BYTE           0xA5U
-#define MAX_PAYLOAD_SIZE           128U /* TiniJAMBE 128-bit */
+#define MAX_PAYLOAD_SIZE           128U /* Maximum plaintext bytes per frame. */
 /* TinyJAMBU config  */
 #define KEY_SIZE_BYTES             16U
 #define NONCE_SIZE_BYTES           12U
