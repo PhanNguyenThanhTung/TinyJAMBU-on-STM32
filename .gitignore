@@ -27,3 +27,4 @@ cmake_install.cmake
 Thumbs.db
 ke_hoach.txt
 stm32_sender/makefile_guide.txt
+PROGRESS_AND_NEXT_STEPS.md
