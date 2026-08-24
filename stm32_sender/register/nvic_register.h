@@ -1,5 +1,5 @@
 #ifndef NVIC_REGISTER_H
-#define NVIC_R
+#define NVIC_REGISTER_H
 
 #include <stdint.h>
 #include "memory_map.h"
