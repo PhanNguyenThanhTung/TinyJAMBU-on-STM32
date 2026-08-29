@@ -18,11 +18,14 @@ status_t uart_init(uint32_t baud_rate) {
     GPIOA->CRH &= ~(0xFUL << 8);
     GPIOA->CRH |= (0x4UL << 8); 
 
-    if (baud_rate == 0) {
+    if ((baud_rate == 0U) || (baud_rate > (SYSTEM_CLOCK_HZ / 16U))) {
         return STATUS_INVALID_PARAMETER;
     }
-    
-    USART1->BRR = (SYSTEM_CLOCK_HZ + (baud_rate / 2)) / baud_rate;
+
+    USART1->BRR = (SYSTEM_CLOCK_HZ + (baud_rate / 2U)) / baud_rate;
+    if ((USART1->BRR < 16U) || (USART1->BRR > 0xFFFFU)) {
+        return STATUS_INVALID_PARAMETER;
+    }
     /* enable UART1 */
     USART1->CR2 = 0;
     USART1->CR3 = 0;
@@ -41,11 +44,16 @@ void uart_send_byte(uint8_t byte) {
 }
 
 void uart_send_buffer(const uint8_t *data, uint16_t length) {
-    if (data == NULL) {
+    if ((data == NULL) || (length == 0U)) {
         return;
     }
     for (uint16_t i = 0; i < length; i++) {
-            uart_send_byte(data[i]);
+        uart_send_byte(data[i]);
+    }
+
+    /* TC guarantees that the final stop bit has left the wire. */
+    while ((USART1->SR & (1UL << 6)) == 0U) {
+        __asm volatile("nop");
     }
 }
 
