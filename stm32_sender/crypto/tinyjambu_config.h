@@ -10,7 +10,6 @@
 
 /* Các chu kỳ vòng lặp hoán vị P_n */
 #define TINYJAMBU_ROUNDS_384           384U
-#define TINYJAMBU_ROUNDS_640           640U
 #define TINYJAMBU_ROUNDS_1024          1024U
 
 /* FrameBits */
