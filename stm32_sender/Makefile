@@ -48,12 +48,13 @@ C_INCLUDES = \
 -Icmsis/core \
 -Icmsis/device \
 -Istartup \
--Iregister
+-Iregister \
+-I../common
 
 MCU = -mcpu=cortex-m3 -mthumb
-CFLAGS = $(MCU) $(C_INCLUDES) -DSTM32F103xB -O2 -Wall -fdata-sections -ffunction-sections -g
+CFLAGS = $(MCU) $(C_INCLUDES) -DSTM32F103xB -O2 -Wall -Wextra -fdata-sections -ffunction-sections -g
 LDSCRIPT = startup/linker.ld
-LDFLAGS  = $(MCU) -T$(LDSCRIPT) -nostartfiles --specs=nano.specs -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
+LDFLAGS  = $(MCU) -T$(LDSCRIPT) -nostartfiles --specs=nano.specs -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
