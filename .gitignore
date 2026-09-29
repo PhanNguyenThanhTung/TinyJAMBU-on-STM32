@@ -33,3 +33,4 @@ esp32_client/sdkconfig.old
 docs/annotated/
 PROJECT_SCRIPT.md
 PROGRESS_AND_NEXT_STEPS.md
+.claude/
